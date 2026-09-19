@@ -10,20 +10,20 @@ SUPABASE_KEY = "sb_publishable_hHkL9KYzeEuVqvK4Cw_WiQ_6ZRrcq_o"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def fetch_and_save_rates():
-    # නිවැරදි Sampath Bank Exchange Rates URL එක
     url = "https://www.sampath.lk/rates-and-charges?activeTab=exchange-rates"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
     }
 
     try:
-        response = requests.get(url, headers=headers, timeout=15)
+        response = requests.get(url, headers=headers, timeout=20)
         soup = BeautifulSoup(response.text, "html.parser")
 
         usd_buy = None
         usd_sell = None
 
-        # Table rows හරහා USD සොයාගැනීම
+        # Page එකේ ඇති සියලුම Table rows පරීක්ෂා කිරීම
         rows = soup.find_all("tr")
         for row in rows:
             text = row.text.upper()
