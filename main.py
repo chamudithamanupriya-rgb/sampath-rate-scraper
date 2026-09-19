@@ -10,28 +10,37 @@ SUPABASE_KEY = "sb_publishable_hHkL9KYzeEuVqvK4Cw_WiQ_6ZRrcq_o"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def fetch_and_save_rates():
-    url = "https://www.sampath.lk/exchange-rates"
+    # නිවැරදි Sampath Bank Exchange Rates URL එක
+    url = "https://www.sampath.lk/rates-and-charges?activeTab=exchange-rates"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
 
     try:
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=15)
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # HTML Table එකෙන් USD Rates ලබා ගැනීම
-        # Sampath Bank Page structure එක අනුව Table data parse කරගනී
-        tables = soup.find_all("table")
         usd_buy = None
         usd_sell = None
 
-        for table in tables:
-            rows = table.find_all("tr")
-            for row in rows:
-                cols = [ele.text.strip() for ele in row.find_all(["td", "th"])]
-                if len(cols) >= 3 and "USD" in cols[0]:
-                    usd_buy = float(cols[1].replace(",", ""))
-                    usd_sell = float(cols[2].replace(",", ""))
+        # Table rows හරහා USD සොයාගැනීම
+        rows = soup.find_all("tr")
+        for row in rows:
+            text = row.text.upper()
+            if "USD" in text or "US DOLLAR" in text:
+                cols = [ele.text.strip().replace(",", "") for ele in row.find_all(["td", "th"])]
+                
+                numbers = []
+                for val in cols:
+                    try:
+                        num = float(val)
+                        numbers.append(num)
+                    except ValueError:
+                        continue
+                
+                if len(numbers) >= 2:
+                    usd_buy = numbers[0]
+                    usd_sell = numbers[1]
                     break
 
         if usd_buy and usd_sell:
@@ -41,11 +50,11 @@ def fetch_and_save_rates():
                 "selling_rate": usd_sell,
                 "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
             }
-            # Supabase එකට Insert කිරීම
+            
             res = supabase.table("exchange_rates").insert(data).execute()
             print("Successfully saved rates:", data)
         else:
-            print("Could not find USD rates on the page.")
+            print("Error: Could not extract USD rates from the page.")
 
     except Exception as e:
         print("Error fetching rates:", e)
