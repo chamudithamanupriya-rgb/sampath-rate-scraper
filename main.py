@@ -2,7 +2,65 @@ import datetime
 import requests
 from bs4 import BeautifulSoup
 from supabase import create_client, Client
+import datetime
+from playwright.sync_api import sync_playwright
+from supabase import create_client, Client
 
+# Supabase Configurations
+SUPABASE_URL = "https://ndytcywjbieigajfgvor.supabase.co"
+SUPABASE_KEY = "sb_publishable_hHkL9KYzeEuVqvK4Cw_WiQ_6ZRrcq_o"
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+def fetch_and_save_rates():
+    url = "https://www.sampath.lk/rates-and-charges?activeTab=exchange-rates"
+    
+    usd_buy = None
+    usd_sell = None
+
+    with sync_playwright() as p:
+        # Browser එක Open කර Page එක Load වන තෙක් සිටීම
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(url, wait_until="networkidle", timeout=60000)
+        
+        # Table rows ලබා ගැනීම
+        rows = page.locator("tr").all()
+        for row in rows:
+            text = row.inner_text().upper()
+            if "USD" in text or "US DOLLAR" in text:
+                cols = [c.strip().replace(",", "") for c in row.inner_text().split("\t")]
+                if len(cols) < 2:
+                    cols = [c.strip().replace(",", "") for c in row.inner_text().split("\n")]
+                
+                numbers = []
+                for val in cols:
+                    try:
+                        numbers.append(float(val))
+                    except ValueError:
+                        continue
+                
+                if len(numbers) >= 2:
+                    usd_buy = numbers[0]
+                    usd_sell = numbers[1]
+                    break
+
+        browser.close()
+
+    if usd_buy and usd_sell:
+        data = {
+            "currency": "USD",
+            "buying_rate": usd_buy,
+            "selling_rate": usd_sell,
+            "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
+        }
+        res = supabase.table("exchange_rates").insert(data).execute()
+        print("Successfully saved rates:", data)
+    else:
+        print("Error: Could not extract USD rates.")
+
+if __name__ == "__main__":
+    fetch_and_save_rates()
 # Supabase Configurations
 SUPABASE_URL = "https://ndytcywjbieigajfgvor.supabase.co"
 SUPABASE_KEY = "sb_publishable_hHkL9KYzeEuVqvK4Cw_WiQ_6ZRrcq_o"
