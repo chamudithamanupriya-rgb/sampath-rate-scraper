@@ -1,0 +1,26 @@
+name: Daily Sampath Rate Scraper
+
+on:
+  schedule:
+    # ශ්‍රී ලංකා වේලාවෙන් සෑම දිනකම උදෑසන 9.00 ට Run වේ
+    - cron: '30 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/python-action@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run Scraper Script
+        run: python main.py
